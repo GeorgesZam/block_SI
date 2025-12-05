@@ -10,14 +10,16 @@
 ## Table des matières
 
 1. [Résumé](#résumé)
-2. [Introduction](#introduction)
-3. [Questionnaire de Sécurité & Audit](#chapitre-0--questionnaire-de-sécurité--audit)
-4. [Cartographie du Système d'Information](#chapitre-1--cartographie-du-système-dinformation)
-5. [Architecture Active Directory](#chapitre-2--architecture-active-directory)
-6. [Stratégies de Groupe](#chapitre-3--stratégies-de-groupe)
-7. [Plan de Sauvegarde](#chapitre-4--plan-de-sauvegarde)
-8. [Garantie des Piliers de Sécurité](#chapitre-5--garantie-des-piliers-de-sécurité)
-9. [Conclusion](#chapitre-6--conclusion)
+2. [Introduction et Contexte](#chapitre-0--introduction-et-contexte)
+3. [Questionnaire de Sécurité & Audit](#chapitre-1--questionnaire-de-sécurité--audit)
+4. [Cartographie du Système d'Information](#chapitre-2--cartographie-du-système-dinformation)
+5. [Architecture Active Directory](#chapitre-3--architecture-active-directory)
+6. [Stratégies de Groupe](#chapitre-4--stratégies-de-groupe)
+7. [Plan de Sauvegarde](#chapitre-5--plan-de-sauvegarde)
+8. [Sécurité Réseau](#chapitre-6--sécurité-réseau-et-politique-de-filtrage)
+9. [Garantie des Piliers de Sécurité](#chapitre-7--garantie-des-piliers-de-sécurité)
+10. [Plan de Continuité et PRA](#chapitre-8--plan-de-continuité-et-plan-de-reprise-dactivité)
+11. [Conclusion](#chapitre-9--conclusion)
 
 ---
 
@@ -39,7 +41,7 @@ Cette architecture respecte les bonnes pratiques en matière de sécurité infor
 
 ---
 
-# Chapitre 1 – Introduction
+# Chapitre 0 – Introduction et Contexte
 
 ## Contexte du projet
 
@@ -48,6 +50,20 @@ L'entreprise XANADU, spécialisée dans les services technologiques, compte **60
 - **Site distant de Springfield** : 10 personnes
 
 Dans le cadre de son déménagement vers la technopole Atlantis, la direction souhaite profiter de cette opportunité pour sécuriser et moderniser son système d'information.
+
+### Les 7 services organisationnels de XANADU
+
+XANADU est structuré selon 7 services/divisions :
+
+1. **Comptabilité et Gestion financière** – 15 utilisateurs
+2. **Commercial** – 12 utilisateurs  
+3. **Bureau d'étude** – 8 utilisateurs
+4. **Juridique** – 3 utilisateurs
+5. **Ressources Humaines (RH)** – 2 utilisateurs
+6. **Direction générale** – 3 utilisateurs
+7. **Laboratoire** (Springfield distant) – 10 utilisateurs
+
+Chaque service dispose d'un dossier partagé dédié et d'un correspondant informatique responsable de la gestion des comptes et des droits d'accès.
 
 ## Objectifs du livrable
 
@@ -72,7 +88,7 @@ Le système d'information doit respecter les contraintes suivantes :
 
 ---
 
-# Chapitre 0 – Questionnaire de Sécurité & Audit des Vulnérabilités
+# Chapitre 1 – Questionnaire de Sécurité & Audit des Vulnérabilités
 
 ## Audit de l'infrastructure actuelle
 
@@ -173,7 +189,7 @@ Avant de déployer la nouvelle architecture, une analyse des vulnérabilités ac
 
 ---
 
-# Chapitre 1 – Cartographie du Système d'Information
+# Chapitre 2 – Cartographie du Système d'Information
 
 ## Vue d'ensemble de l'architecture
 
@@ -283,22 +299,6 @@ Les deux sites sont reliés par une liaison **VPN MPLS (10.0.0.0/30)** offrant :
 - Chiffrement de bout en bout
 - Qualité de service garantie
 - Secours automatique en cas de défaillance
-
-## Description des serveurs et services
-
-### Serveurs principaux (Atlantis)
-
-| Serveur | Rôle | Description |
-|---------|------|-------------|
-| SRVDC1 | Contrôleur de domaine | DC principal, FSMO, DNS, DHCP |
-| SRVDC2 | Contrôleur de domaine | DC secondaire, DNS, réplication AD |
-| SRVFS1 | Serveur de fichiers | Partages services, profils utilisateurs |
-| SRVFS2 | Serveur de fichiers | Réplication DFS, sauvegardes fichiers |
-| SRVAPP1 | Serveur d'applications | Frontend ERP, IIS |
-| SRVDB1 | Base de données | PostgreSQL backend ERP |
-| SRVWEB1 | Portail web | DMZ, accès externe ERP |
-| SRVMON1 | Supervision | Zabbix, logs, métriques |
-| SRVBACK1 | Sauvegarde | Veeam, orchestration backups |
 
 ## Description des serveurs et services
 
@@ -451,7 +451,7 @@ La réplication s'effectue en **temps réel** pour les modifications critiques e
 
 ## Structure des Unités d'Organisation (OU)
 
-La structure des OU est organisée selon une logique **géographique** puis **fonctionnelle** :
+La structure des OU est organisée selon une logique **géographique** puis **fonctionnelle** selon les 7 services de XANADU :
 
 ```mermaid
 graph TD
@@ -535,17 +535,17 @@ Des comptes dédiés sont créés pour chaque service applicatif avec des droits
 
 Les groupes sont organisés selon une logique fonctionnelle pour faciliter la gestion des permissions :
 
-### Groupes fonctionnels
+### Groupes fonctionnels (7 services XANADU)
 
-| Groupe | Type | Description |
-|--------|------|-------------|
-| GG_COMPTABILITE | Sécurité | Service comptabilité |
-| GG_COMMERCIAL | Sécurité | Équipe commerciale |
-| GG_JURIDIQUE | Sécurité | Service juridique |
-| GG_RH | Sécurité | Ressources humaines |
-| GG_DIRECTION | Sécurité | Direction générale |
-| GG_BUREAU_ETUDE | Sécurité | Bureau d'étude |
-| GG_LABORATOIRE | Sécurité | Laboratoire Springfield |
+| Groupe | Type | Description | Correspondant IT |
+|--------|------|-------------|------------------|
+| GG_COMPTABILITE | Sécurité | Service comptabilité (15 users) | Désigné par direction |
+| GG_COMMERCIAL | Sécurité | Équipe commerciale (12 users) | Désigné par direction |
+| GG_JURIDIQUE | Sécurité | Service juridique (3 users) | Désigné par direction |
+| GG_RH | Sécurité | Ressources humaines (2 users) | Désigné par direction |
+| GG_DIRECTION | Sécurité | Direction générale (3 users) | Désigné par direction |
+| GG_BUREAU_ETUDE | Sécurité | Bureau d'étude (8 users) | Désigné par direction |
+| GG_LABORATOIRE | Sécurité | Laboratoire Springfield (10 users) | Désigné par direction |
 
 ### Groupes de permissions
 
@@ -559,20 +559,49 @@ Les groupes sont organisés selon une logique fonctionnelle pour faciliter la ge
 
 ## Administration déléguée
 
-L'administration déléguée est mise en œuvre via les stratégies de groupe et les délégations de contrôle sur les OU :
+L'administration déléguée est mise en œuvre via les stratégies de groupe et les délégations de contrôle sur les OU. Chaque service possède un correspondant IT qui peut :
 
-### Délégations configurées
+### Pouvoirs du correspondant IT par service
 
-- **Correspondants informatiques** : Gestion des comptes utilisateurs de leur service, réinitialisation mots de passe, gestion des groupes locaux
-- **Administrateurs de service** : Administration complète de l'OU de leur service, gestion des partages, délégation de permissions
-- **Équipe CESITECH** : Administration de l'ensemble du domaine, gestion des stratégies de groupe, maintenance des serveurs
+Pour chaque service (Comptabilité, Commercial, Juridique, RH, Direction, Bureau d'étude, Laboratoire) :
+
+**Délégations configurées :**
+
+- **Créer et modifier les comptes utilisateurs** de leur service dans l'OU correspondante
+- **Gérer les groupes locaux** et adhésion aux groupes de sécurité de leur service  
+- **Réinitialiser les mots de passe** des utilisateurs de leur service
+- **Gérer les droits d'accès** aux ressources de leur service (partages, imprimantes)
+- **Intégrer les nouveaux ordinateurs** au domaine pour leur service
+- **Créer les sous-dossiers** et gérer les partages fichiers du service
+
+**Restrictions :**
+
+- Aucun accès aux services autres (sauf ce qui est partagé explicitement)
+- Aucune modification de stratégies de groupe
+- Aucune modification des délégations de contrôle
+- Aucune gestion des comptes de service ou comptes d'administration domaine
+
+### Équipe CESITECH (Administration centrale)
+
+- **Administration de l'ensemble du domaine**
+- **Gestion des stratégies de groupe** au niveau domaine et site
+- **Maintenance des serveurs** et infrastructure AD
+- **Surveillance et audit** de la sécurité AD
+- **Gestion des comptes de service** et comptes d'administration
+- **Backup et restore** des configurations AD
 
 ### Permissions sur les partages
+
+Les partages de fichiers sont configurés avec un modèle de permissions suivant les 7 services de XANADU :
 
 | Dossier | Groupe | Permissions |
 |---------|--------|-------------|
 | \Comptabilité | GG_COMPTABILITE | Modification |
+| | GG_DIRECTION | Contrôle total |
+| \Commercial | GG_COMMERCIAL | Modification |
+| | GG_DIRECTION | Contrôle total |
 | \Juridique | GG_JURIDIQUE | Modification |
+| | GG_COMMERCIAL | Lecture |
 | | GG_RH | Lecture |
 | | GG_DIRECTION | Contrôle total |
 | \RH | GG_RH | Modification |
@@ -581,8 +610,12 @@ L'administration déléguée est mise en œuvre via les stratégies de groupe et
 | \Direction | GG_DIRECTION | Contrôle total |
 | \Bureau_Etude | GG_BUREAU_ETUDE | Modification |
 | | GG_LABORATOIRE | Lecture |
+| | GG_DIRECTION | Contrôle total |
 | \Laboratoire | GG_LABORATOIRE | Modification |
 | | GG_BUREAU_ETUDE | Lecture |
+| | GG_DIRECTION | Contrôle total |
+| \Personnel | Chaque utilisateur | Modification (dossier personnel) |
+| | GG_DIRECTION | Contrôle total |
 
 ---
 
@@ -764,11 +797,41 @@ Cet ordre d'application garantit que les paramètres domaine s'appliquent en pre
 
 ## Classification des données et RTO/RPO
 
-| Catégorie | Données | RTO | RPO | Fréquence | Volume |
-|-----------|---------|-----|-----|-----------|--------|
-| Critiques | Base ERP, Données financières | 4 heures | 1 heure | Continue | 10 Go |
-| Importantes | Partages services, Emails | 24 heures | 4 heures | 4x/jour | 800 Go |
-| Moins critiques | Dossiers personnels | 24 heures | 24 heures | 1x/jour | 300 Go |
+### Classification par criticité
+
+Selon la matrice XANADU, les données sont classées en trois niveaux de criticité :
+
+| Catégorie | Données | Services/Sources | RTO | RPO | Fréquence | Volume |
+|-----------|---------|------------------|-----|-----|-----------|--------|
+| **Critiques** | Base de données ERP PostgreSQL | Infrastructure centrale | 4h | 1h | Continue | 10 Go |
+| | Documents juridiques | Juridique | 4h | 1h | 4x/jour | 50 Go |
+| | Documents direction | Direction | 4h | 1h | 4x/jour | 30 Go |
+| **Importants** | Partages commerciaux | Commercial | 24h | 4h | 4x/jour | 200 Go |
+| | Partages RH | Ressources Humaines | 24h | 4h | 4x/jour | 100 Go |
+| | Emails Office 365 | Tous services (Outlook) | 24h | 4h | Continu | 400 Go |
+| **Moins critiques** | Dossiers personnels | Utilisateurs (5 Go × 60) | 24h | 24h | 1x/jour | 300 Go |
+| | Données Comptabilité | Comptabilité & Gestion financière | 24h | 4h | 1x/jour | 120 Go |
+| | Bureau d'étude fichiers | Bureau d'étude | 24h | 4h | 1x/jour | 150 Go |
+| | Laboratoire données | Laboratoire (Springfield) | 24h | 4h | 1x/jour | 80 Go |
+
+**Total volumes de données : 1 440 Go (1,16 To) avec croissance prévue ~150 Go/an (20% croissance différenciée par service)**
+
+### Règles de sauvegarde par criticité
+
+**Données critiques** (RTO 4h / RPO 1h) :
+- Réplication continue ou snapshots toutes les 15 minutes
+- Sauvegarde incrémentale + complète hebdomadaire
+- Stockage local + cloud + archives LTO-8
+
+**Données importantes** (RTO 24h / RPO 4h) :
+- Sauvegarde incrémentale 4x par jour
+- Sauvegarde différentielle quotidienne
+- Stockage local + cloud
+
+**Données moins critiques** (RTO 24h / RPO 24h) :
+- Sauvegarde complète quotidienne
+- Stockage local uniquement
+- Rétention 30 jours minimum
 
 ## Architecture de sauvegarde 3-2-1 avancée
 
@@ -1010,7 +1073,7 @@ La DMZ accueille les services exposés à Internet avec isolation stricte :
 
 ---
 
-# Chapitre 5 – Garantie des Piliers de Sécurité
+# Chapitre 7 – Garantie des Piliers de Sécurité
 
 ## Framework CIDT (Confidentialité, Intégrité, Disponibilité, Traçabilité)
 
@@ -1188,7 +1251,7 @@ La traçabilité est assurée par :
 
 ---
 
-# Chapitre 7 – Plan de Continuité et Plan de Reprise d'Activité
+# Chapitre 8 – Plan de Continuité et Plan de Reprise d'Activité
 
 ## Objectifs de service (SLA)
 
@@ -1302,7 +1365,7 @@ Temps T0+4h : RAS utilisateurs
 
 ---
 
-# Chapitre 8 – Conclusion
+# Chapitre 9 – Conclusion
 
 ## Synthèse de la solution proposée
 
