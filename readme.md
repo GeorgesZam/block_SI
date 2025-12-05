@@ -111,6 +111,56 @@ L'architecture cible pour XANADU repose sur une approche **centralisée** avec r
 
 Le système d'information XANADU est organisé en deux sites géographiquement distincts :
 
+```
+                           INTERNET
+                              |
+                              |
+        ┌─────────────────────┴──────────────────────┐
+        |                                            |
+    ┌───▼────┐                                   ┌───▼────┐
+    │ FW-ATL │◄──────────────VPN MPLS──────────►│ FW-SPR │
+    └───┬────┘                                   └───┬────┘
+        |                                            |
+        |                                            |
+    ┌───┴────────────────────────────────────┐      |
+    |         SITE ATLANTIS                  |      |
+    |                                        |  ┌───┴──────────────────┐
+    │ ┌──────────────────────────────────┐  │  │  SITE SPRINGFIELD    │
+    │ │ LAN Atlantis (192.168.10.0/24)  │  │  │                      │
+    │ │ ├─ Postes de travail            │  │  │ ┌────────────────┐   │
+    │ │ └─ Utilisateurs                 │  │  │ │ LAN Springfield│   │
+    │ │                                  │  │  │ │ 192.168.50.0/24│   │
+    │ │ ┌──────────────────────────────┐  │  │ │ └────────────────┘   │
+    │ │ │ Réseau Serveurs (192.168.20) │  │  │                      │
+    │ │ │ ├─ SRVDC1 (DC Principal)     │  │  │ ┌────────────────┐   │
+    │ │ │ ├─ SRVDC2 (DC Secondaire)    │  │  │ │ SRVDC3 (RODC)  │   │
+    │ │ │ ├─ SRVFS1, SRVFS2 (Fichiers) │  │  │ │ SRVFS3 (Cache) │   │
+    │ │ │ ├─ SRVAPP1 (ERP)             │  │  │ └────────────────┘   │
+    │ │ │ └─ SRVDB1 (PostgreSQL)       │  │  │                      │
+    │ │ │                               │  │  │ ┌────────────────┐   │
+    │ │ │ ┌──────────────────────────┐  │  │  │ │ SRVLIN1, LIN2  │   │
+    │ │ │ │ DMZ (192.168.30.0/24)    │  │  │  │ │ (Laboratoire)  │   │
+    │ │ │ │ ├─ SRVWEB1 (Portail)     │  │  │  │ └────────────────┘   │
+    │ │ │ │ └─ Accès externe         │  │  │                      │
+    │ │ │ │                          │  │  │ └─────────────────────┘
+    │ │ │ └──────────────────────────┘  │  │
+    │ │ │                                │  │
+    │ │ │ ┌──────────────────────────┐  │  │
+    │ │ │ │Management (192.168.40)   │  │  │
+    │ │ │ │ └─ Accès administratif   │  │  │
+    │ │ │ └──────────────────────────┘  │  │
+    │ │ │                                │  │
+    │ │ │ ┌──────────────────────────┐  │  │
+    │ │ │ │Backup (192.168.60.0/24)  │  │  │
+    │ │ │ │├─ NAS-BACKUP-ATL 20To    │  │  │
+    │ │ │ │├─ SRVBACK1 (Veeam)       │  │  │
+    │ │ │ │└─ Cloud OVH              │  │  │
+    │ │ │ └──────────────────────────┘  │  │
+    │ │ └──────────────────────────────┘  │
+    │ └────────────────────────────────────┘
+    └─────────────────────────────────────────┘
+```
+
 ### Site principal - Atlantis
 
 Le site principal concentre les serveurs critiques et dispose d'une connectivité Internet directe :
@@ -205,6 +255,33 @@ Les rôles FSMO sont centralisés sur **SRVDC1** pour garantir la cohérence :
 
 L'infrastructure Active Directory repose sur une architecture haute disponibilité :
 
+```
+xanadu.local (Forêt et Domaine)
+│
+├─ SRVDC1 (Atlantis) ◄─────────────────────┐
+│  ├─ 5 Rôles FSMO                        │
+│  ├─ DC Principal                        │
+│  ├─ DNS Primary                         │
+│  ├─ DHCP Server                         │
+│  └─ Réplication ──┐                     │
+│                   │ Bidirectionnelle    │
+│                   ▼                     │
+│              SRVDC2 (Atlantis)          │
+│              ├─ DC Secondaire           │
+│              ├─ DNS Secondary           │
+│              └─ Basculement auto ────┐  │
+│                                       │  │
+│                   Réplication VPN MPLS │  │
+│                                       │  │
+└──────────────────────────────────────►│  │
+                                        ▼  ▼
+                                    SRVDC3 (Springfield)
+                                    ├─ RODC (Lecture seule)
+                                    ├─ Cache mots de passe
+                                    ├─ DNS Local
+                                    └─ Authentification locale
+```
+
 - **SRVDC1 (Atlantis)** : Contrôleur principal avec les 5 rôles FSMO, héberge tous les maîtres d'opérations
 - **SRVDC2 (Atlantis)** : Contrôleur secondaire en réplication bidirectionnelle avec SRVDC1, basculement automatique en cas de défaillance
 - **SRVDC3 (Springfield)** : Contrôleur en lecture seule (RODC), réplication via liaison VPN MPLS, support de l'authentification locale
@@ -216,23 +293,48 @@ La réplication s'effectue en **temps réel** pour les modifications critiques e
 La structure des OU est organisée selon une logique **géographique** puis **fonctionnelle** :
 
 ```
-xanadu.local (conteneur racine)
-├── ATLANTIS (site principal)
-│   ├── Utilisateurs (comptes utilisateurs)
-│   │   ├── Comptabilité
-│   │   ├── Commercial
-│   │   ├── Juridique
-│   │   ├── RH
-│   │   ├── Direction
-│   │   └── Bureau étude
-│   ├── Ordinateurs (postes de travail et serveurs)
-│   ├── Groupes (groupes de sécurité et de distribution)
-│   └── Ressources (imprimantes, partages réseau)
-└── SPRINGFIELD (site distant)
-    ├── Utilisateurs
-    │   └── Laboratoire
-    ├── Ordinateurs (postes et équipements distants)
-    └── Ressources (ressources locales)
+📂 xanadu.local (Domaine Racine)
+│
+├─ 📁 ATLANTIS (Site Principal - Atlantis)
+│  │
+│  ├─ 📁 Utilisateurs
+│  │  ├─ 👥 Comptabilité (15 users)
+│  │  ├─ 👥 Commercial (12 users)
+│  │  ├─ 👥 Juridique (3 users)
+│  │  ├─ 👥 RH (2 users)
+│  │  ├─ 👥 Direction (3 users)
+│  │  └─ 👥 Bureau étude (8 users)
+│  │
+│  ├─ 📁 Ordinateurs
+│  │  ├─ 💻 Postes de travail (45)
+│  │  ├─ 🖥️ Serveurs (9)
+│  │  └─ 🖨️ Imprimantes (15)
+│  │
+│  ├─ 📁 Groupes
+│  │  ├─ 👫 GG_COMPTABILITE
+│  │  ├─ 👫 GG_COMMERCIAL
+│  │  ├─ 👫 GG_JURIDIQUE
+│  │  ├─ 👫 GG_RH
+│  │  ├─ 👫 GG_DIRECTION
+│  │  └─ 👫 GG_BUREAU_ETUDE
+│  │
+│  └─ 📁 Ressources
+│     ├─ 🎯 Partages réseau
+│     ├─ 🔐 Permissions
+│     └─ 🔗 Liaisons GPO
+│
+└─ 📁 SPRINGFIELD (Site Distant - Springfield)
+   │
+   ├─ 📁 Utilisateurs
+   │  └─ 👥 Laboratoire (10 users)
+   │
+   ├─ 📁 Ordinateurs
+   │  ├─ 💻 Postes de travail (10)
+   │  └─ 🖥️ Serveurs (4)
+   │
+   └─ 📁 Ressources
+      ├─ 🎯 Partages locaux
+      └─ 🔗 Cache de fichiers
 ```
 
 ## Types de comptes et rôles
@@ -424,6 +526,42 @@ Les stratégies de groupe de sécurité visent à durcir le poste de travail et 
 
 Les stratégies de groupe sont liées hiérarchiquement aux unités d'organisation pour assurer l'application progressive des restrictions et configurations :
 
+```
+              GPO Sécurité Domaine
+                (xanadu.local)
+                        │
+      ┌─────────────────┼─────────────────┐
+      │                 │                 │
+      ▼                 ▼                 ▼
+   GPO Audit      GPO Authentification GPO Principes
+   & Conformité      & Sync              de Sécurité
+      │                 │                 │
+      └─────────────────┼─────────────────┘
+                        │
+      ┌─────────────────┼─────────────────┐
+      │                                   │
+      ▼ ATLANTIS                          ▼ SPRINGFIELD
+   GPO Poste Travail                   GPO Laboratoire
+   GPO Serveur
+   GPO Maintenance
+      │
+   ┌──┴──┬──┬──┬──┬──────┐
+   │     │  │  │  │      │
+   ▼     ▼  ▼  ▼  ▼      ▼
+  COMPTA COMM JUR RH DIRECTION BUREAU_ÉTUDE
+  ├─ GPO │  │  │  │      │
+  │ Compta│ GPO │ GPO │ GPO │
+  │       │Commercial│RH │Direction│
+  │       │          │  │       │
+  └───────┴──────────┴──┴───────┘
+
+
+Ordre d'application (du plus général au plus spécifique) :
+1️⃣ Domaine (xanadu.local)
+2️⃣ Site (ATLANTIS ou SPRINGFIELD)
+3️⃣ OU Fonctionnelle (Comptabilité, Commercial, etc.)
+```
+
 - **Au niveau domaine (xanadu.local)** : GPO Sécurité Domaine (audit, authentification)
 - **Au niveau site (ATLANTIS)** : GPO Poste Travail, GPO Serveur
 - **Au niveau OU fonctionnelle** : GPO Métier (Comptabilité, Commercial, etc.)
@@ -446,6 +584,48 @@ Cet ordre d'application garantit que les paramètres domaine s'appliquent en pre
 ## Architecture de sauvegarde 3-2-1
 
 L'architecture de sauvegarde repose sur une approche éprouvée :
+
+```
+🔴 DONNÉES SOURCES                    📦 ORCHESTRATION                    💾 STOCKAGE
+│                                     │                                   │
+├─ 📊 Base ERP (Continue)            │                                   │
+│  ├─ Snapshots 15 min ─────────────►├─ SRVBACK1                        │
+│  └─ Réplication temps réel          │ (Veeam Backup)                  │
+│                                     │                                   │
+├─ 📁 Fichiers Critiques             │ ┌─ 2️⃣ Médias Différents:         │
+│  ├─ Incrémentale 4x/jour ─────────►├─┤                                 │
+│  └─ Différentielle nuit             │ │ 1️⃣ Stockage LOCAL              │
+│                                     │ │ (NAS RAID 6)                    │
+├─ 📱 Postes de Travail              │ │                                  │
+│  └─ Sauvegarde complète nuit ──────►│ │ NAS-BACKUP-ATL: 20 To          │
+│                                     │ │ NAS-BACKUP-SPR: 5 To           │
+└─ 🖥️ Serveurs                       │ │                                  │
+   └─ Sauvegarde complète dimanche ──►│ │ 2️⃣ Stockage CLOUD (Hors site)  │
+                                     │ │ Cloud OVH: 50 To                 │
+                                     │ │ Archives LTO-8: 12 To/bande      │
+                                     │ └──────────────────────────────────┘
+                                     │
+                                     └─ 3️⃣ COPIE EXTERNE (Conformité)
+                                        Souverain Cloud
+                                        
+
+
+📊 Approche 3-2-1 :
+┌────────────────────────────────────────────────────┐
+│ 3️⃣ TROIS COPIES                                   │
+│   • Données originales (Production)               │
+│   • Copie 1 (Stockage local NAS)                 │
+│   • Copie 2 (Stockage cloud external)             │
+├────────────────────────────────────────────────────┤
+│ 2️⃣ DEUX MÉDIAS DIFFÉRENTS                         │
+│   • Stockage NAS local (Performance)              │
+│   • Stockage Cloud external (Sécurité)            │
+├────────────────────────────────────────────────────┤
+│ 1️⃣ UNE COPIE HORS SITE                           │
+│   • Cloud OVH (Protection complète)               │
+│   • Archives LTO-8 (Long terme)                   │
+└────────────────────────────────────────────────────┘
+```
 
 - **3 copies des données** : Données originales + 2 copies de sauvegarde
 - **2 types de médias différents** : Stockage local (NAS) + Stockage cloud
@@ -523,6 +703,71 @@ Pour les données moins critiques :
 ---
 
 # Chapitre 6 – Garantie des Piliers de Sécurité
+
+## Framework CIDT (Confidentialité, Intégrité, Disponibilité, Traçabilité)
+
+```
+                    🔐 SÉCURITÉ XANADU 🔐
+                   
+          ┌─────────────────────────────────┐
+          │   Données & Informations        │
+          │        XANADU                   │
+          └─────────────────────────────────┘
+                        △
+                    ╱   ╲
+                  ╱       ╲
+                ╱           ╲
+              ╱               ╲
+            ╱                   ╲
+    ┌──────────────────────────────────────┐
+    │                                      │
+    │  🔐 CONFIDENTIALITÉ              │
+    │  ├─ Authentification forte       │
+    │  ├─ Contrôle d'accès             │
+    │  ├─ Ségrégation données          │
+    │  ├─ Chiffrement (BitLocker,      │
+    │  │  SMB 3.0, AES-256)            │
+    │  ├─ VPN & Pare-feu              │
+    │  └─ DMZ isolée                  │
+    │                                   │
+    └──────────────────────────────────┘
+              │                │
+              │                │
+    ┌─────────▼──┐         ┌──▼─────────┐
+    │             │         │             │
+    │ ✅ INTÉGRITÉ │        │ 📊TRAÇABILITÉ│
+    │             │         │             │
+    │ ├─ Permissions│       │ ├─ Audit    │
+    │ │  NTFS      │       │ │  connexion │
+    │ ├─ Audit mod │       │ ├─ Journaux  │
+    │ ├─ Signatures│       │ │  centralisés
+    │ ├─ Versioning│       │ ├─ Alertes   │
+    │ │  Shadow    │       │ │  temps réel│
+    │ │  Copy      │       │ └─ Rapports  │
+    │ └─ Snapshots │       │    mensuels  │
+    │             │         │             │
+    └─────────────┘         └─────────────┘
+              │                │
+              │                │
+              │                │
+              └────────┬───────┘
+                       │
+              ┌────────▼────────┐
+              │  🟢DISPONIBILITÉ │
+              │                 │
+              │ ├─ Redondance   │
+              │ │  matérielle   │
+              │ ├─ Cluster HA   │
+              │ ├─ RAID 6       │
+              │ ├─ Réplication  │
+              │ ├─ Load         │
+              │ │  Balancing    │
+              │ ├─ RTO 4h       │
+              │ ├─ RPO 1h       │
+              │ └─ PRA 24h      │
+              │                 │
+              └─────────────────┘
+```
 
 ## Confidentialité
 
