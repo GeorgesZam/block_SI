@@ -11,15 +11,14 @@
 
 1. [Résumé](#résumé)
 2. [Introduction et Contexte](#chapitre-0--introduction-et-contexte)
-3. [Questionnaire de Sécurité & Audit](#chapitre-1--questionnaire-de-sécurité--audit)
-4. [Cartographie du Système d'Information](#chapitre-2--cartographie-du-système-dinformation)
-5. [Architecture Active Directory](#chapitre-3--architecture-active-directory)
-6. [Stratégies de Groupe](#chapitre-4--stratégies-de-groupe)
-7. [Plan de Sauvegarde](#chapitre-5--plan-de-sauvegarde)
-8. [Sécurité Réseau](#chapitre-6--sécurité-réseau-et-politique-de-filtrage)
-9. [Garantie des Piliers de Sécurité](#chapitre-7--garantie-des-piliers-de-sécurité)
-10. [Plan de Continuité et PRA](#chapitre-8--plan-de-continuité-et-plan-de-reprise-dactivité)
-11. [Conclusion](#chapitre-9--conclusion)
+3. [Cartographie du Système d'Information](#chapitre-1--cartographie-du-système-dinformation)
+4. [Architecture Active Directory](#chapitre-2--architecture-active-directory)
+5. [Stratégies de Groupe](#chapitre-3--stratégies-de-groupe)
+6. [Plan de Sauvegarde](#chapitre-4--plan-de-sauvegarde)
+7. [Sécurité Réseau](#chapitre-5--sécurité-réseau-et-politique-de-filtrage)
+8. [Garantie des Piliers de Sécurité](#chapitre-6--garantie-des-piliers-de-sécurité)
+9. [Plan de Continuité et PRA](#chapitre-7--plan-de-continuité-et-plan-de-reprise-dactivité)
+10. [Conclusion](#chapitre-8--conclusion)
 
 ---
 
@@ -88,108 +87,7 @@ Le système d'information doit respecter les contraintes suivantes :
 
 ---
 
-# Chapitre 1 – Questionnaire de Sécurité & Audit des Vulnérabilités
-
-## Audit de l'infrastructure actuelle
-
-Avant de déployer la nouvelle architecture, une analyse des vulnérabilités actuelles de XANADU a été réalisée selon les axes de remédiation du cadre de référence ANSSI.
-
-## Questionnaire de sécurité et vulnérabilités identifiées
-
-### Gouvernance et Gestion des Risques
-
-| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
-|----------|-----------|------------------------|-------------------|
-| Politique de sécurité formalisée | ❌ Absente | Absence de cadre de référence | Définir PSSI complète selon ISO 27001 |
-| Rôles et responsabilités SI clarifiés | ⚠️ Partiel | Administrateurs par défaut, pas de délégation | Implémenter délégation AD granulaire |
-| Audit de sécurité régulier | ❌ Absent | Pas de détection des anomalies | Mettre en place monitoring 24/7 |
-| Plan de continuité d'activité (PCA) | ❌ Absent | Aucun PRA en cas d'incident | Développer PRA avec RTO 4h critiques |
-
-### Gestion des Accès
-
-| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
-|----------|-----------|------------------------|-------------------|
-| Authentification centralisée | ⚠️ Partiel | Un DC, pas de redondance | Ajouter DC secondaire + RODC |
-| Authentification forte | ❌ Absente | Mots de passe simples, comptes partagés | Implémenter Kerberos + GPO complexité |
-| Principe du moindre privilège | ❌ Absent | Tous les utilisateurs admins locaux | Contrôle d'accès basé sur les rôles (RBAC) |
-| Gestion des accès distants | ❌ Absent | Télétravail sans VPN sécurisé | Déployer VPN SSL + Bastion hôte |
-| Comptes de service sécurisés | ❌ Absent | Pas de comptes dédiés avec mots de passe forts | Créer comptes services avec rotation régulière |
-
-### Protection des Données
-
-| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
-|----------|-----------|------------------------|-------------------|
-| Chiffrement des données au repos | ❌ Absent | Données en clair sur NAS | Activer BitLocker + chiffrement partages |
-| Chiffrement des données en transit | ⚠️ Partiel | HTTP utilisé pour ERP | Forcer HTTPS/TLS 1.2+ |
-| Classification des données | ⚠️ Partiel | Classification métier seulement | Implémentation technique avec permissions |
-| Ségrégation des données | ❌ Absent | Tous les partages accessibles à tous | VLANs + DMZ + segmentation réseau |
-| Sauvegarde décentralisée | ❌ Absent | Sauvegardes sur clés USB non chiffrées | 3-2-1 : local + cloud + archive LTO |
-
-### Protection des Systèmes
-
-| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
-|----------|-----------|------------------------|-------------------|
-| Antivirus centralisé | ⚠️ Partiel | Antivirus version gratuite, config par défaut | Windows Defender intégré + GPO dédié |
-| Durcissement des postes | ❌ Absent | Utilisateurs admins locaux | AppLocker + restrictions UAC |
-| Patchs de sécurité | ⚠️ Manuel | Mises à jour non automatisées | WSUS avec approbation centralisée |
-| Pare-feu activé | ⚠️ Partiel | Pare-feu Windows désactivé | GPO activation pare-feu Windows avancé |
-| Segmentation réseau | ❌ Absent | Tous sur un même réseau | DMZ + VLANs (LAN, Serveurs, Management) |
-
-### Audit et Traçabilité
-
-| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
-|----------|-----------|------------------------|-------------------|
-| Journalisation centralisée | ❌ Absent | Logs éparpillés sans agrégation | Event Forwarding + serveur Syslog |
-| Audit des connexions | ❌ Absent | Pas de détection des accès anormaux | Audit réussi/échoué + alertes anomalies |
-| Audit des modifications | ❌ Absent | Aucun contrôle d'intégrité fichiers | Audit Object Access + Shadow Copy |
-| Alertes en temps réel | ❌ Absent | Détection d'incidents tardive | SIEM/Zabbix avec alertes 24/7 |
-| Rétention des logs | ❌ Absent | Logs effacés rapidement | Conservation 1 an minimum |
-
-### Sauvegardes et Continuité
-
-| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
-|----------|-----------|------------------------|-------------------|
-| Stratégie 3-2-1 | ❌ Absent | Clés USB en alternance insuffisant | 3 copies, 2 médias, 1 hors-site |
-| RTO/RPO définis | ⚠️ Partiel | Pas de SLA documenté | RTO 4h critique, 24h standard |
-| Test de restauration | ❌ Absent | Aucune validation des sauvegardes | Tests mensuels documentés |
-| Externalisation Cloud | ❌ Absent | Pas de sauvegarde hors-site | Cloud OVH (souverain) + archives LTO |
-| Réplication data | ❌ Absent | Mono-site, pas de redondance | DFS + réplication asynchrone |
-
-### Conformité et Légal
-
-| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
-|----------|-----------|------------------------|-------------------|
-| Conformité RGPD | ⚠️ Partiel | Données personnelles sans protection | Traçabilité complète + registre CNIL |
-| Certification ISO 27001 | ❌ Absente | Pas de cadre formel | Préparation certification ISO 27001 |
-| Contrats de maintenance | ⚠️ Partiel | Maintenance ad-hoc sans SLA | SLA opérateur 4h + support technique 24/7 |
-| Droit d'accès des utilisateurs | ⚠️ Partiel | Dossiers sans gestion explicitée | AGDLP + délégation par OU |
-
-## Plan de remédiation
-
-### Priorité CRITIQUE (Implémentation immédiate)
-
-✅ **Sécurisation accès** : Authentification centralisée redondante (DC2, RODC)
-✅ **Chiffrement données** : BitLocker + SMB 3.0 + TLS 1.2
-✅ **Sauvegardes 3-2-1** : Local NAS + Cloud OVH + archives LTO-8
-✅ **Segmentation réseau** : DMZ + VLANs + pare-feu
-✅ **GPO sécurité** : Complexité mots de passe, AppLocker, audit
-
-### Priorité HAUTE (3-6 mois)
-
-✅ **Audit centralisé** : Event Forwarding + serveur Syslog
-✅ **VPN sécurisé** : RAS/VPN pour télétravail
-✅ **Antivirus managé** : Windows Defender + GPO
-✅ **Sauvegarde externalisée** : Cloud avec chiffrement end-to-end
-
-### Priorité MOYENNE (6-12 mois)
-
-✅ **Conformité RGPD** : Inventaire données + DPA
-✅ **ISO 27001** : Documentation + audit externe
-✅ **SIEM avancé** : Détection anomalies + corrélation événements
-
----
-
-# Chapitre 2 – Cartographie du Système d'Information
+# Chapitre 1 – Cartographie du Système d'Information
 
 ## Vue d'ensemble de l'architecture
 
@@ -372,7 +270,7 @@ Les deux sites sont reliés par une liaison **VPN MPLS (10.0.0.0/30)** offrant :
 
 ---
 
-# Chapitre 3 – Architecture Active Directory
+# Chapitre 2 – Architecture Active Directory
 
 ## Structure logique de l'annuaire
 
@@ -619,7 +517,7 @@ Les partages de fichiers sont configurés avec un modèle de permissions suivant
 
 ---
 
-# Chapitre 4 – Stratégies de Groupe
+# Chapitre 3 – Stratégies de Groupe
 
 ## Stratégies de sécurité
 
@@ -793,7 +691,7 @@ Cet ordre d'application garantit que les paramètres domaine s'appliquent en pre
 
 ---
 
-# Chapitre 5 – Plan de Sauvegarde
+# Chapitre 4 – Plan de Sauvegarde
 
 ## Classification des données et RTO/RPO
 
@@ -963,7 +861,7 @@ Pour les données moins critiques :
 
 ---
 
-# Chapitre 6 – Sécurité Réseau et Politique de Filtrage
+# Chapitre 5 – Sécurité Réseau et Politique de Filtrage
 
 ## Architecture de sécurité réseau
 
@@ -1073,7 +971,7 @@ La DMZ accueille les services exposés à Internet avec isolation stricte :
 
 ---
 
-# Chapitre 7 – Garantie des Piliers de Sécurité
+# Chapitre 6 – Garantie des Piliers de Sécurité
 
 ## Framework CIDT (Confidentialité, Intégrité, Disponibilité, Traçabilité)
 
@@ -1251,7 +1149,7 @@ La traçabilité est assurée par :
 
 ---
 
-# Chapitre 8 – Plan de Continuité et Plan de Reprise d'Activité
+# Chapitre 7 – Plan de Continuité et Plan de Reprise d'Activité
 
 ## Objectifs de service (SLA)
 
@@ -1365,7 +1263,7 @@ Temps T0+4h : RAS utilisateurs
 
 ---
 
-# Chapitre 9 – Conclusion
+# Chapitre 8 – Conclusion
 
 ## Synthèse de la solution proposée
 
