@@ -128,48 +128,57 @@ L'architecture cible pour XANADU repose sur une approche **centralisée** avec r
 Le système d'information XANADU est organisé en deux sites géographiquement distincts :
 
 ```mermaid
-graph TD
-    INTERNET["🌐 INTERNET"]
+architecture-beta
+    group internet(internet)[Internet & Sécurité]
     
-    INTERNET -->|Connexion sécurisée| FW-ATL["🔥 FW-ATL<br/>Pare-feu Atlantis"]
-    INTERNET -->|Connexion sécurisée| FW-SPR["🔥 FW-SPR<br/>Pare-feu Springfield"]
+    group atlantis(cloud)[SITE ATLANTIS - 50 utilisateurs]
+        group lan_atl(cloud)[LAN Atlantis 192.168.10.0/24]
+            service postes_atl(server)[Postes Travail]
+        
+        group infra_atl(cloud)[Infrastructure Atlantis]
+            service srvdc1(server)[SRVDC1 - DC Principal]
+            service srvdc2(server)[SRVDC2 - DC Secondaire]
+            service srvfs1(disk)[SRVFS1 - Fichiers]
+            service srvfs2(disk)[SRVFS2 - Réplication]
+            service srvapp1(server)[SRVAPP1 - ERP]
+            service srvdb1(database)[SRVDB1 - PostgreSQL]
+        
+        group dmz(cloud)[DMZ 192.168.30.0/24]
+            service srvweb1(internet)[SRVWEB1 - Portail Web]
+        
+        group backup(cloud)[Sauvegarde 192.168.60.0/24]
+            service srvback1(server)[SRVBACK1 - Veeam]
+            service nas_atl(disk)[NAS-ATL 20 To RAID6]
     
-    FW-ATL ---|VPN MPLS<br/>10.0.0.0/30| FW-SPR
+    group springfield(cloud)[SITE SPRINGFIELD - 10 utilisateurs]
+        group lan_spr(cloud)[LAN Springfield 192.168.50.0/24]
+            service postes_spr(server)[Postes Travail]
+            service srvlin1(server)[SRVLIN1 - Linux Lab]
+            service srvlin2(server)[SRVLIN2 - Linux Lab]
+        
+        group infra_spr(cloud)[Infrastructure Springfield]
+            service srvdc3(server)[SRVDC3 - RODC]
+            service srvfs3(disk)[SRVFS3 - Cache Files]
     
-    FW-ATL --> SITE-ATL["<b>SITE ATLANTIS</b><br/>(50 utilisateurs)"]
-    FW-SPR --> SITE-SPR["<b>SITE SPRINGFIELD</b><br/>(10 utilisateurs)"]
+    group cloud_ext(internet)[Stockage Externe]
+        service cloud_ovh(internet)[OVH Cloud 50 To]
     
-    SITE-ATL --> LAN-ATL["🖥️ LAN Atlantis<br/>192.168.10.0/24<br/>Postes + Utilisateurs"]
-    SITE-ATL --> SRV-ATL["🗄️ Réseau Serveurs<br/>192.168.20.0/24"]
-    SITE-ATL --> DMZ["🔐 DMZ<br/>192.168.30.0/24<br/>SRVWEB1 - Portail"]
-    SITE-ATL --> MGMT["⚙️ Management<br/>192.168.40.0/24<br/>Admin Access"]
-    SITE-ATL --> BACKUP["💾 Backup<br/>192.168.60.0/24"]
+    postes_atl:R --> L:srvdc1
+    srvdc1:R --> L:srvdc2
+    srvdc1:B --> T:srvfs1
+    srvfs1:R --> L:srvfs2
+    srvdc1:B --> T:srvapp1
+    srvapp1:B --> T:srvdb1
+    srvapp1:R --> L:srvweb1
+    srvback1:L --> R:nas_atl
+    srvback1:B --> T:cloud_ovh
     
-    SRV-ATL --> DC1["DC Principal<br/>SRVDC1"]
-    SRV-ATL --> DC2["DC Secondaire<br/>SRVDC2"]
-    SRV-ATL --> FS["Fichiers<br/>SRVFS1/2"]
-    SRV-ATL --> APP["ERP<br/>SRVAPP1"]
-    SRV-ATL --> DB["PostgreSQL<br/>SRVDB1"]
+    postes_spr:R --> L:srvdc3
+    srvdc3:B --> T:srvfs3
+    postes_spr:B --> T:srvlin1
+    srvlin1:R --> L:srvlin2
     
-    BACKUP --> NAS-ATL["NAS-BACKUP-ATL<br/>20 To RAID 6"]
-    BACKUP --> VEEAM["SRVBACK1<br/>Veeam Orch."]
-    BACKUP --> CLOUD["☁️ Cloud OVH<br/>50 To"]
-    
-    SITE-SPR --> LAN-SPR["🖥️ LAN Springfield<br/>192.168.50.0/24"]
-    SITE-SPR --> DC3["RODC<br/>SRVDC3"]
-    SITE-SPR --> FS3["Fichiers Local<br/>SRVFS3"]
-    SITE-SPR --> LAB["Laboratoire<br/>SRVLIN1/2"]
-    
-    style INTERNET fill:#ff9999
-    style FW-ATL fill:#ffcc99
-    style FW-SPR fill:#ffcc99
-    style SITE-ATL fill:#ccffcc
-    style SITE-SPR fill:#ccffff
-    style LAN-ATL fill:#e6f3ff
-    style SRV-ATL fill:#fff0e6
-    style DMZ fill:#ffe6e6
-    style MGMT fill:#e6ffe6
-    style BACKUP fill:#fff9e6
+    srvdc1{group}:B --> T:srvdc3{group}
 ```
 
 ### Site principal - Atlantis
@@ -312,33 +321,29 @@ Les rôles FSMO sont centralisés sur **SRVDC1** pour garantir la cohérence :
 L'infrastructure Active Directory repose sur une architecture haute disponibilité :
 
 ```mermaid
-graph TB
-    ROOT["🌳 xanadu.local<br/>Forêt & Domaine<br/>Niveau 2019"]
+architecture-beta
+    group forest(cloud)[Forêt: xanadu.local (Niveau 2019)]
+        group atlantis_site(cloud)[Site Atlantis]
+            service dc1_atl(server)[SRVDC1 - DC Principal]
+            service dc2_atl(server)[SRVDC2 - DC Secondaire]
+            service dns1(server)[Services DNS/DHCP]
+        
+        group springfield_site(cloud)[Site Springfield - VPN MPLS]
+            service dc3_spr(server)[SRVDC3 - RODC]
+            service dns_local(server)[DNS Local & Cache]
+        
+        group fsmo_roles(cloud)[Rôles FSMO (SRVDC1)]
+            service rid_master(server)[RID Master]
+            service pdc_emul(server)[PDC Emulator]
+            service infra_master(server)[Infrastructure Master]
     
-    ROOT --> DC1["🔑 SRVDC1<br/>DC Principal - Atlantis"]
-    ROOT --> DC2["🔄 SRVDC2<br/>DC Secondaire - Atlantis"]
-    ROOT --> DC3["📖 SRVDC3<br/>RODC - Springfield"]
-    
-    DC1 --> FSMO["5 Rôles FSMO<br/>RID, PDC, Infrastructure<br/>Naming Master, Schema Master"]
-    DC1 -->|Réplication Bidirectionnelle| DC2
-    DC2 -->|VPN MPLS Réplication| DC3
-    
-    DC1 --> SRV1["Services DNS/DHCP<br/>Primary"]
-    DC2 --> SRV2["Services DNS<br/>Secondary"]
-    DC3 --> SRV3["DNS Local & Cache<br/>Mots de passe<br/>Authentication Locale"]
-    
-    DC1 -.->|Temps réel| SYNC1["Modifications critiques"]
-    DC2 -.->|15 minutes| SYNC2["Changements standards"]
-    DC3 -.->|VPN Sécurisé| SYNC3["Cache local"]
-    
-    style ROOT fill:#cc99ff
-    style DC1 fill:#99ff99
-    style DC2 fill:#99ffcc
-    style DC3 fill:#ffcc99
-    style FSMO fill:#ffff99
-    style SYNC1 fill:#ff9999
-    style SYNC2 fill:#ff9999
-    style SYNC3 fill:#ff9999
+    dc1_atl:R --> L:dc2_atl
+    dc1_atl:B --> T:dns1
+    dc1_atl:R --> L:dc3_spr
+    dc3_spr:B --> T:dns_local
+    dc1_atl:B --> T:rid_master
+    dc1_atl:B --> T:pdc_emul
+    dc1_atl:B --> T:infra_master
 ```
 
 - **SRVDC1 (Atlantis)** : Contrôleur principal avec les 5 rôles FSMO, héberge tous les maîtres d'opérations
@@ -352,57 +357,40 @@ La réplication s'effectue en **temps réel** pour les modifications critiques e
 La structure des OU est organisée selon une logique **géographique** puis **fonctionnelle** selon les 7 services de XANADU :
 
 ```mermaid
-graph TD
-    ROOT["📂 xanadu.local<br/>Domaine Racine"]
-    
-    ROOT --> ATL["📁 ATLANTIS<br/>Site Principal"]
-    ROOT --> SPR["📁 SPRINGFIELD<br/>Site Distant"]
-    
-    ATL --> ATL_U["� Utilisateurs"]
-    ATL --> ATL_C["� Ordinateurs"]
-    ATL --> ATL_G["👫 Groupes"]
-    ATL --> ATL_R["🎯 Ressources"]
-    
-    ATL_U --> COMPTA["Comptabilité<br/>15 users"]
-    ATL_U --> COMM["Commercial<br/>12 users"]
-    ATL_U --> JUR["Juridique<br/>3 users"]
-    ATL_U --> RH["RH<br/>2 users"]
-    ATL_U --> DIR["Direction<br/>3 users"]
-    ATL_U --> BE["Bureau étude<br/>8 users"]
-    
-    ATL_C --> POSTES["Postes travail<br/>45 équipements"]
-    ATL_C --> SRV["Serveurs<br/>9 équipements"]
-    ATL_C --> PRINT["Imprimantes<br/>15 équipements"]
-    
-    ATL_G --> GG_C["GG_COMPTABILITE"]
-    ATL_G --> GG_CO["GG_COMMERCIAL"]
-    ATL_G --> GG_J["GG_JURIDIQUE"]
-    ATL_G --> GG_RH_["GG_RH"]
-    ATL_G --> GG_D["GG_DIRECTION"]
-    ATL_G --> GG_B["GG_BUREAU_ETUDE"]
-    
-    SPR --> SPR_U["� Utilisateurs"]
-    SPR --> SPR_C["💻 Ordinateurs"]
-    SPR --> SPR_R["🎯 Ressources"]
-    
-    SPR_U --> LAB["Laboratoire<br/>10 users"]
-    SPR_C --> SPR_POST["Postes travail<br/>10 équipements"]
-    SPR_C --> SPR_SRV["Serveurs<br/>4 équipements"]
-    SPR_R --> CACHE["Cache fichiers"]
-    
-    style ROOT fill:#cc99ff,stroke:#8833ff
-    style ATL fill:#99ff99,stroke:#33cc00
-    style SPR fill:#ffcc99,stroke:#ff9900
-    style ATL_U fill:#e6f3ff
-    style ATL_C fill:#e6ffe6
-    style ATL_G fill:#ffe6f0
-    style COMPTA fill:#cce5ff
-    style COMM fill:#cce5ff
-    style JUR fill:#cce5ff
-    style RH fill:#cce5ff
-    style DIR fill:#cce5ff
-    style BE fill:#cce5ff
-    style LAB fill:#fff0cc
+architecture-beta
+    group root(cloud)[xanadu.local - Domaine Racine]
+        group atlantis_ou(cloud)[ATLANTIS - Site Principal]
+            group users_atl(cloud)[Utilisateurs]
+                service compta(server)[Comptabilité - 15 users]
+                service commercial(server)[Commercial - 12 users]
+                service juridique(server)[Juridique - 3 users]
+                service rh(server)[RH - 2 users]
+                service direction(server)[Direction - 3 users]
+                service bureau_etude(server)[Bureau d\'étude - 8 users]
+            
+            group computers_atl(cloud)[Ordinateurs]
+                service postes(server)[Postes Travail - 45]
+                service servers_atl(server)[Serveurs - 9]
+                service printers(server)[Imprimantes - 15]
+            
+            group groups_atl(cloud)[Groupes Sécurité]
+                service gg_compta(server)[GG_COMPTABILITE]
+                service gg_commercial(server)[GG_COMMERCIAL]
+                service gg_juridique(server)[GG_JURIDIQUE]
+                service gg_rh(server)[GG_RH]
+                service gg_direction(server)[GG_DIRECTION]
+                service gg_be(server)[GG_BUREAU_ETUDE]
+        
+        group springfield_ou(cloud)[SPRINGFIELD - Site Distant]
+            group users_spr(cloud)[Utilisateurs]
+                service labo(server)[Laboratoire - 10 users]
+            
+            group computers_spr(cloud)[Ordinateurs]
+                service postes_spr(server)[Postes Travail - 10]
+                service servers_spr(server)[Serveurs - 4]
+            
+            group groups_spr(cloud)[Groupes Sécurité]
+                service gg_labo(server)[GG_LABORATOIRE]
 ```
 
 ## Types de comptes et rôles
@@ -628,58 +616,35 @@ Les stratégies de groupe de sécurité visent à durcir le poste de travail et 
 Les stratégies de groupe sont liées hiérarchiquement aux unités d'organisation pour assurer l'application progressive des restrictions et configurations :
 
 ```mermaid
-graph TD
-    DOM["🔒 GPO Sécurité Domaine<br/><b>xanadu.local</b>"]
+architecture-beta
+    group domain(cloud)[xanadu.local - Domaine]
+        group security(cloud)[Sécurité Domaine]
+            service gpo_audit(server)[GPO Audit & Conformité]
+            service gpo_auth(server)[GPO Authentification]
+            service gpo_sec(server)[GPO Principes Sécurité]
+        
+        group atlantis_site(cloud)[ATLANTIS]
+            service gpo_pc(server)[GPO Poste Travail]
+            service gpo_srv(server)[GPO Serveur]
+            service gpo_main(server)[GPO Maintenance]
+            
+            group func_ou(cloud)[OU Fonctionnelles]
+                service compta_ou(server)[Comptabilité]
+                service comm_ou(server)[Commercial]
+                service jur_ou(server)[Juridique]
+                service rh_ou(server)[RH]
+                service dir_ou(server)[Direction]
+                service be_ou(server)[Bureau étude]
+        
+        group springfield_site(cloud)[SPRINGFIELD]
+            service lab_ou(server)[Laboratoire]
     
-    DOM --> AUDIT["📊 GPO Audit & Conformité"]
-    DOM --> AUTH["🔐 GPO Authentification & Sync"]
-    DOM --> SEC["🛡️ GPO Principes Sécurité"]
-    
-    AUDIT --> SITE["<b>NIVEAU SITE</b>"]
-    AUTH --> SITE
-    SEC --> SITE
-    
-    SITE --> ATL["ATLANTIS"]
-    SITE --> SPR["SPRINGFIELD"]
-    
-    ATL --> ATL_POSTE["💻 GPO Poste Travail"]
-    ATL --> ATL_SRV["🖥️ GPO Serveur"]
-    ATL --> ATL_MAIN["🔧 GPO Maintenance"]
-    
-    ATL_POSTE --> OU_FUNC["<b>OU FONCTIONNELLES</b>"]
-    ATL_SRV --> OU_FUNC
-    ATL_MAIN --> OU_FUNC
-    
-    OU_FUNC --> COMPTA_OU["Comptabilité<br/>GPO Métier"]
-    OU_FUNC --> COMM_OU["Commercial<br/>GPO Métier"]
-    OU_FUNC --> JUR_OU["Juridique<br/>GPO Métier"]
-    OU_FUNC --> RH_OU["RH<br/>GPO Métier"]
-    OU_FUNC --> DIR_OU["Direction<br/>GPO Métier"]
-    OU_FUNC --> BE_OU["Bureau étude<br/>GPO Métier"]
-    
-    SPR --> SPR_LAB["Laboratoire<br/>GPO Spécifique"]
-    
-    APPLY["<b>Ordre d'Application:</b><br/>1️⃣ Domaine<br/>2️⃣ Site<br/>3️⃣ OU Fonctionnelle"]
-    
-    style DOM fill:#ff9999
-    style AUDIT fill:#ffcc99
-    style AUTH fill:#ffcc99
-    style SEC fill:#ffcc99
-    style SITE fill:#99ff99
-    style ATL fill:#99ff99
-    style SPR fill:#ccffff
-    style ATL_POSTE fill:#cce5ff
-    style ATL_SRV fill:#cce5ff
-    style ATL_MAIN fill:#cce5ff
-    style OU_FUNC fill:#ffe6cc
-    style COMPTA_OU fill:#e6f3ff
-    style COMM_OU fill:#e6f3ff
-    style JUR_OU fill:#e6f3ff
-    style RH_OU fill:#e6f3ff
-    style DIR_OU fill:#e6f3ff
-    style BE_OU fill:#e6f3ff
-    style SPR_LAB fill:#fff0cc
-    style APPLY fill:#ffffcc,stroke:#ff9900
+    gpo_audit:B --> T:gpo_pc
+    gpo_auth:B --> T:gpo_srv
+    gpo_sec:B --> T:gpo_main
+    gpo_pc:B --> T:compta_ou
+    gpo_srv:B --> T:comm_ou
+    gpo_main:B --> T:jur_ou
 ```
 
 - **Au niveau domaine (xanadu.local)** : GPO Sécurité Domaine (audit, authentification)
@@ -736,68 +701,32 @@ Selon la matrice XANADU, les données sont classées en trois niveaux de critici
 L'architecture de sauvegarde repose sur la règle 3-2-1 renforcée avec automatisation complète :
 
 ```mermaid
-graph LR
-    SOURCES["� DONNÉES SOURCES"]
-    
-    ERP["�️ Base ERP<br/>Continue<br/>Snapshots 15min"]
-    FILES["📁 Fichiers Critiques<br/>4x/jour<br/>Incrémentale"]
-    POSTES["💻 Postes Travail<br/>Nuit<br/>Complète"]
-    SERVERS["🖥️ Serveurs<br/>Dimanche<br/>Complète"]
-    
-    SOURCES --> ERP
-    SOURCES --> FILES
-    SOURCES --> POSTES
-    SOURCES --> SERVERS
-    
-    ERP --> ORCHESTRATION["🎯 ORCHESTRATION<br/>SRVBACK1<br/>Veeam Backup"]
-    FILES --> ORCHESTRATION
-    POSTES --> ORCHESTRATION
-    SERVERS --> ORCHESTRATION
-    
-    ORCHESTRATION --> STORAGE["💾 STOCKAGE"]
-    
-    STORAGE --> LOCAL["📍 STOCKAGE LOCAL<br/>NAS RAID 6<br/>Déduplication"]
-    STORAGE --> CLOUD["☁️ STOCKAGE CLOUD<br/>OVH<br/>Réplication"]
-    STORAGE --> ARCHIVE["� ARCHIVES<br/>LTO-8<br/>Long terme"]
-    
-    LOCAL --> NAS_ATL["NAS-BACKUP-ATL<br/>20 To"]
-    LOCAL --> NAS_SPR["NAS-BACKUP-SPR<br/>5 To"]
-    
-    CLOUD --> OVH["OVH Cloud<br/>50 To"]
-    
-    ARCHIVE --> LTO["LTO-8 Bandes<br/>12 To/bande"]
-    
-    PRINCIPLE["<b>Approche 3-2-1:</b><br/>3️⃣ Trois copies<br/>2️⃣ Deux médias<br/>1️⃣ Une hors-site"]
-    
-    style SOURCES fill:#ff9999,stroke:#cc0000
-    style ERP fill:#ffcccc
-    style FILES fill:#ffcccc
-    style POSTES fill:#ffcccc
-    style SERVERS fill:#ffcccc
-    style ORCHESTRATION fill:#ffff99,stroke:#ff9900
-    style STORAGE fill:#99ff99,stroke:#00cc00
-    style LOCAL fill:#99ff99
-    style CLOUD fill:#99ccff
-    style ARCHIVE fill:#cc99ff
-    style NAS_ATL fill:#ccffcc
-    style NAS_SPR fill:#ccffcc
-    style OVH fill:#cce5ff
-    style LTO fill:#e6ccff
-    style PRINCIPLE fill:#ffffcc,stroke:#ff9900
-```
+architecture-beta
+    group sources(cloud)[Sources de données]
+        service erp(database)[Base ERP - Snapshots 15min]
+        service files(disk)[Fichiers critiques - 4x/jour]
+        service postes(server)[Postes travail - sauvegarde nocturne]
+        service servers(server)[Serveurs - sauvegarde hebdo]
 
-- **3 copies des données** : Données originales + 2 copies de sauvegarde
-- **2 types de médias différents** : Stockage local (NAS) + Stockage cloud
-- **1 copie hors site** : Cloud hors site pour protection maximale
+    group orchestration(cloud)[Orchestration]
+        service srvback(server)[SRVBACK1 - Veeam Orchestrator]
 
-### Flux de sauvegarde
+    group storage(cloud)[Stockage]
+        group local(cloud)[Local - NAS RAID6]
+            service nas_atl(disk)[NAS-BACKUP-ATL 20 To]
+            service nas_spr(disk)[NAS-BACKUP-SPR 5 To]
+        group external(internet)[Externe]
+            service ovh(internet)[OVH Cloud 50 To]
+            service lto(disk)[LTO-8 Archives]
 
-| Sources | Serveur Backup | Stockage Local | Stockage Externe |
-|---------|----------------|----------------|------------------|
-| Base ERP | SRVBACK1 | NAS Atlantis | Cloud OVH |
-| Fichiers critiques | Veeam Orch. | NAS Springfield | Archives LTO-8 |
-| Postes clients | Snapshots 15m | Compression | Conformité |
-| | 3-2-1 Strategy | Déduplication | Souverain |
+    erp:R --> L:srvback
+    files:R --> L:srvback
+    postes:R --> L:srvback
+    servers:R --> L:srvback
+    srvback:B --> T:nas_atl
+    srvback:B --> T:nas_spr
+    srvback:R --> L:ovh
+    srvback:R --> L:lto
 
 ### Infrastructure de sauvegarde
 
@@ -870,34 +799,24 @@ La sécurité du réseau repose sur une approche en profondeur avec segmentation
 ### Segmentation par VLANs
 
 ```mermaid
-graph TB
-    INTERNET["🌐 INTERNET"]
-    
-    INTERNET --> FW["🔥 PARE-FEU PRINCIPAL<br/>Filtrage + IDPS + Proxy UTM"]
-    
-    FW --> VLAN10["🌐 VLAN 10<br/>LAN Atlantis<br/>192.168.10.0/24"]
-    FW --> VLAN20["🔒 VLAN 20<br/>Serveurs<br/>192.168.20.0/24"]
-    FW --> VLAN30["🔐 VLAN 30<br/>DMZ Demilitarisée<br/>192.168.30.0/24"]
-    FW --> VLAN40["⚙️ VLAN 40<br/>Management<br/>192.168.40.0/24"]
-    FW --> VLAN50["🌐 VLAN 50<br/>LAN Springfield<br/>192.168.50.0/24"]
-    FW --> VLAN60["💾 VLAN 60<br/>Sauvegarde<br/>192.168.60.0/24"]
-    
-    VLAN10 --> PC["💻 Postes Travail<br/>45 équipements"]
-    VLAN20 --> DC["🔑 Contrôleurs<br/>SRVDC1, SRVDC2"]
-    VLAN20 --> FS["📁 Fichiers<br/>SRVFS1, SRVFS2"]
-    VLAN20 --> APP["🎯 ERP<br/>SRVAPP1 + SRVDB1"]
-    VLAN30 --> WEB["🌐 Portail Web<br/>SRVWEB1"]
-    VLAN40 --> MGMT["🔧 Accès Admin<br/>SSH, RDP, SNMP"]
-    VLAN60 --> NAS["💾 NAS Backup<br/>NAS-BACKUP-ATL"]
-    
-    style INTERNET fill:#ff9999
-    style FW fill:#ff6666,stroke:#cc0000
-    style VLAN10 fill:#cce5ff
-    style VLAN20 fill:#e6ccff
-    style VLAN30 fill:#ffe6e6
-    style VLAN40 fill:#ccffcc
-    style VLAN50 fill:#ffcccc
-    style VLAN60 fill:#ffffcc
+architecture-beta
+    group internet(internet)[Internet]
+        service fw(server)[FW-Principale - Filtrage & IDPS]
+
+    group vlans(cloud)[VLANs]
+        service vlan10(server)[VLAN10 - LAN Atlantis 192.168.10.0/24]
+        service vlan20(server)[VLAN20 - Serveurs 192.168.20.0/24]
+        service vlan30(server)[VLAN30 - DMZ 192.168.30.0/24]
+        service vlan40(server)[VLAN40 - Management 192.168.40.0/24]
+        service vlan50(server)[VLAN50 - LAN Springfield 192.168.50.0/24]
+        service vlan60(server)[VLAN60 - Backup 192.168.60.0/24]
+
+    fw:R --> L:vlan10
+    fw:R --> L:vlan20
+    fw:R --> L:vlan30
+    fw:R --> L:vlan40
+    fw:R --> L:vlan50
+    fw:R --> L:vlan60
 ```
 
 ### Politique de filtrage pare-feu
@@ -976,75 +895,28 @@ La DMZ accueille les services exposés à Internet avec isolation stricte :
 ## Framework CIDT (Confidentialité, Intégrité, Disponibilité, Traçabilité)
 
 ```mermaid
-graph TB
-    DATA["🔐 DONNÉES & INFORMATIONS XANADU"]
+architecture-beta
+    group data(cloud)[Données XANADU]
+        group confidentiality(cloud)[Confidentialité]
+            service auth(server)[Authentification forte]
+            service acl(server)[Contrôle d\'accès]
+            service enc(server)[Chiffrement AES-256]
+        group integrity(cloud)[Intégrité]
+            service perms(server)[Permissions NTFS]
+            service audit(server)[Audit modifications]
+            service snaps(server)[Snapshots / Versioning]
+        group availability(cloud)[Disponibilité]
+            service raid(disk)[RAID 6]
+            service ha(server)[Cluster HA]
+            service rto(server)[RTO 4h]
+        group traceability(cloud)[Traçabilité]
+            service logs(server)[Journalisation centralisée]
+            service alerts(server)[Alertes temps réel]
     
-    DATA --> CONF["🔐 CONFIDENTIALITÉ"]
-    DATA --> INT["✅ INTÉGRITÉ"]
-    DATA --> DISPO["� DISPONIBILITÉ"]
-    DATA --> TRACE["📊 TRAÇABILITÉ"]
-    
-    CONF --> CONF_AUTH["🔒 Authentification forte"]
-    CONF --> CONF_ACL["🛡️ Contrôle d'accès"]
-    CONF --> CONF_SEG["📍 Ségrégation données"]
-    CONF --> CONF_ENC["🔑 Chiffrement<br/>BitLocker, SMB 3.0, AES-256"]
-    CONF --> CONF_NET["🌐 VPN & Pare-feu"]
-    CONF --> CONF_DMZ["🔐 DMZ isolée"]
-    
-    INT --> INT_PERM["🔒 Permissions NTFS"]
-    INT --> INT_AUDIT["📋 Audit modifications"]
-    INT --> INT_SIG["✍️ Signatures numériques"]
-    INT --> INT_VERSION["📚 Versioning & Shadow Copy"]
-    INT --> INT_SNAP["📸 Snapshots réguliers"]
-    INT --> INT_CHECK["✔️ Contrôle intégrité"]
-    
-    DISPO --> DISPO_RED["🔴 Redondance matérielle"]
-    DISPO --> DISPO_RAID["💾 RAID 6"]
-    DISPO --> DISPO_CLUSTER["⚙️ Cluster HA"]
-    DISPO --> DISPO_LB["⚖️ Load Balancing"]
-    DISPO --> DISPO_RTO["⏱️ RTO 4h"]
-    DISPO --> DISPO_RPO["⏱️ RPO 1h"]
-    
-    TRACE --> TRACE_LOG["📁 Journalisation centralisée"]
-    TRACE --> TRACE_AUDIT_L["📊 Audit connexions"]
-    TRACE --> TRACE_PERM_L["🔐 Audit permissions"]
-    TRACE --> TRACE_ACCESS["📖 Audit accès données"]
-    TRACE --> TRACE_ALERT["⚠️ Alertes temps réel"]
-    TRACE --> TRACE_REPORT["📈 Rapports mensuels"]
-    
-    style DATA fill:#ff99cc,stroke:#cc0066
-    style CONF fill:#ff9999,stroke:#cc0000
-    style INT fill:#99ff99,stroke:#00cc00
-    style DISPO fill:#99ff99,stroke:#00cc00
-    style TRACE fill:#99ccff,stroke:#0066cc
-    
-    style CONF_AUTH fill:#ffcccc
-    style CONF_ACL fill:#ffcccc
-    style CONF_SEG fill:#ffcccc
-    style CONF_ENC fill:#ffcccc
-    style CONF_NET fill:#ffcccc
-    style CONF_DMZ fill:#ffcccc
-    
-    style INT_PERM fill:#ccffcc
-    style INT_AUDIT fill:#ccffcc
-    style INT_SIG fill:#ccffcc
-    style INT_VERSION fill:#ccffcc
-    style INT_SNAP fill:#ccffcc
-    style INT_CHECK fill:#ccffcc
-    
-    style DISPO_RED fill:#ccffcc
-    style DISPO_RAID fill:#ccffcc
-    style DISPO_CLUSTER fill:#ccffcc
-    style DISPO_LB fill:#ccffcc
-    style DISPO_RTO fill:#ccffcc
-    style DISPO_RPO fill:#ccffcc
-    
-    style TRACE_LOG fill:#cce5ff
-    style TRACE_AUDIT_L fill:#cce5ff
-    style TRACE_PERM_L fill:#cce5ff
-    style TRACE_ACCESS fill:#cce5ff
-    style TRACE_ALERT fill:#cce5ff
-    style TRACE_REPORT fill:#cce5ff
+    confidentiality:R --> L:enc
+    integrity:R --> L:snaps
+    availability:R --> L:raid
+    traceability:R --> L:logs
 ```
 
 ## Confidentialité
@@ -1154,31 +1026,16 @@ La traçabilité est assurée par :
 ## Objectifs de service (SLA)
 
 ```mermaid
-graph TB
-    CRITERE["📊 OBJECTIFS DE SERVICE"]
+architecture-beta
+    group sla(cloud)[Objectifs de service]
+        service rto(server)[RTO - Critique 4h / Standard 24h]
+        service rpo(server)[RPO - Critique 1h / Standard 4h]
+        service mttr(server)[MTTR - Max 4h]
+        service dispo(server)[Disponibilité 99.9%]
     
-    CRITERE --> RTO["⏱️ RTO<br/>Recovery Time Objective"]
-    CRITERE --> RPO["🕐 RPO<br/>Recovery Point Objective"]
-    CRITERE --> MTTR["🔧 MTTR<br/>Mean Time To Repair"]
-    CRITERE --> DISPO["📈 Disponibilité<br/>99.9% SLA"]
-    
-    RTO --> RTO_CRIT["🔴 Critique<br/>4 heures"]
-    RTO --> RTO_STD["🟡 Standard<br/>24 heures"]
-    
-    RPO --> RPO_CRIT["🔴 Critique<br/>1 heure"]
-    RPO --> RPO_STD["🟡 Standard<br/>4 heures"]
-    
-    MTTR --> MTTR_VAL["⚙️ Maximum 4 heures<br/>SLA opérateur"]
-    
-    DISPO --> DISPO_H["📊 99.9% = 43min/mois"]
-    
-    style CRITERE fill:#ff9999
-    style RTO fill:#ffcccc
-    style RPO fill:#ffcccc
-    style MTTR fill:#ffcccc
-    style DISPO fill:#ffcccc
-    style RTO_CRIT fill:#ff9999
-    style RPO_CRIT fill:#ff9999
+    rto:R --> L:rpo
+    rto:R --> L:mttr
+    dispo:R --> L:mttr
 ```
 
 ## Matrice de criticité des services
