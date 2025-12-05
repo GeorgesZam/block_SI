@@ -11,12 +11,13 @@
 
 1. [Résumé](#résumé)
 2. [Introduction](#introduction)
-3. [Cartographie du Système d'Information](#chapitre-1--cartographie-du-système-dinformation)
-4. [Architecture Active Directory](#chapitre-2--architecture-active-directory)
-5. [Stratégies de Groupe](#chapitre-3--stratégies-de-groupe)
-6. [Plan de Sauvegarde](#chapitre-4--plan-de-sauvegarde)
-7. [Garantie des Piliers de Sécurité](#chapitre-5--garantie-des-piliers-de-sécurité)
-8. [Conclusion](#chapitre-6--conclusion)
+3. [Questionnaire de Sécurité & Audit](#chapitre-0--questionnaire-de-sécurité--audit)
+4. [Cartographie du Système d'Information](#chapitre-1--cartographie-du-système-dinformation)
+5. [Architecture Active Directory](#chapitre-2--architecture-active-directory)
+6. [Stratégies de Groupe](#chapitre-3--stratégies-de-groupe)
+7. [Plan de Sauvegarde](#chapitre-4--plan-de-sauvegarde)
+8. [Garantie des Piliers de Sécurité](#chapitre-5--garantie-des-piliers-de-sécurité)
+9. [Conclusion](#chapitre-6--conclusion)
 
 ---
 
@@ -71,7 +72,108 @@ Le système d'information doit respecter les contraintes suivantes :
 
 ---
 
-# Chapitre 2 – Cartographie du Système d'Information
+# Chapitre 0 – Questionnaire de Sécurité & Audit des Vulnérabilités
+
+## Audit de l'infrastructure actuelle
+
+Avant de déployer la nouvelle architecture, une analyse des vulnérabilités actuelles de XANADU a été réalisée selon les axes de remédiation du cadre de référence ANSSI.
+
+## Questionnaire de sécurité et vulnérabilités identifiées
+
+### Gouvernance et Gestion des Risques
+
+| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
+|----------|-----------|------------------------|-------------------|
+| Politique de sécurité formalisée | ❌ Absente | Absence de cadre de référence | Définir PSSI complète selon ISO 27001 |
+| Rôles et responsabilités SI clarifiés | ⚠️ Partiel | Administrateurs par défaut, pas de délégation | Implémenter délégation AD granulaire |
+| Audit de sécurité régulier | ❌ Absent | Pas de détection des anomalies | Mettre en place monitoring 24/7 |
+| Plan de continuité d'activité (PCA) | ❌ Absent | Aucun PRA en cas d'incident | Développer PRA avec RTO 4h critiques |
+
+### Gestion des Accès
+
+| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
+|----------|-----------|------------------------|-------------------|
+| Authentification centralisée | ⚠️ Partiel | Un DC, pas de redondance | Ajouter DC secondaire + RODC |
+| Authentification forte | ❌ Absente | Mots de passe simples, comptes partagés | Implémenter Kerberos + GPO complexité |
+| Principe du moindre privilège | ❌ Absent | Tous les utilisateurs admins locaux | Contrôle d'accès basé sur les rôles (RBAC) |
+| Gestion des accès distants | ❌ Absent | Télétravail sans VPN sécurisé | Déployer VPN SSL + Bastion hôte |
+| Comptes de service sécurisés | ❌ Absent | Pas de comptes dédiés avec mots de passe forts | Créer comptes services avec rotation régulière |
+
+### Protection des Données
+
+| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
+|----------|-----------|------------------------|-------------------|
+| Chiffrement des données au repos | ❌ Absent | Données en clair sur NAS | Activer BitLocker + chiffrement partages |
+| Chiffrement des données en transit | ⚠️ Partiel | HTTP utilisé pour ERP | Forcer HTTPS/TLS 1.2+ |
+| Classification des données | ⚠️ Partiel | Classification métier seulement | Implémentation technique avec permissions |
+| Ségrégation des données | ❌ Absent | Tous les partages accessibles à tous | VLANs + DMZ + segmentation réseau |
+| Sauvegarde décentralisée | ❌ Absent | Sauvegardes sur clés USB non chiffrées | 3-2-1 : local + cloud + archive LTO |
+
+### Protection des Systèmes
+
+| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
+|----------|-----------|------------------------|-------------------|
+| Antivirus centralisé | ⚠️ Partiel | Antivirus version gratuite, config par défaut | Windows Defender intégré + GPO dédié |
+| Durcissement des postes | ❌ Absent | Utilisateurs admins locaux | AppLocker + restrictions UAC |
+| Patchs de sécurité | ⚠️ Manuel | Mises à jour non automatisées | WSUS avec approbation centralisée |
+| Pare-feu activé | ⚠️ Partiel | Pare-feu Windows désactivé | GPO activation pare-feu Windows avancé |
+| Segmentation réseau | ❌ Absent | Tous sur un même réseau | DMZ + VLANs (LAN, Serveurs, Management) |
+
+### Audit et Traçabilité
+
+| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
+|----------|-----------|------------------------|-------------------|
+| Journalisation centralisée | ❌ Absent | Logs éparpillés sans agrégation | Event Forwarding + serveur Syslog |
+| Audit des connexions | ❌ Absent | Pas de détection des accès anormaux | Audit réussi/échoué + alertes anomalies |
+| Audit des modifications | ❌ Absent | Aucun contrôle d'intégrité fichiers | Audit Object Access + Shadow Copy |
+| Alertes en temps réel | ❌ Absent | Détection d'incidents tardive | SIEM/Zabbix avec alertes 24/7 |
+| Rétention des logs | ❌ Absent | Logs effacés rapidement | Conservation 1 an minimum |
+
+### Sauvegardes et Continuité
+
+| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
+|----------|-----------|------------------------|-------------------|
+| Stratégie 3-2-1 | ❌ Absent | Clés USB en alternance insuffisant | 3 copies, 2 médias, 1 hors-site |
+| RTO/RPO définis | ⚠️ Partiel | Pas de SLA documenté | RTO 4h critique, 24h standard |
+| Test de restauration | ❌ Absent | Aucune validation des sauvegardes | Tests mensuels documentés |
+| Externalisation Cloud | ❌ Absent | Pas de sauvegarde hors-site | Cloud OVH (souverain) + archives LTO |
+| Réplication data | ❌ Absent | Mono-site, pas de redondance | DFS + réplication asynchrone |
+
+### Conformité et Légal
+
+| Question | État actuel | Vulnérabilité identifiée | Mesure corrective |
+|----------|-----------|------------------------|-------------------|
+| Conformité RGPD | ⚠️ Partiel | Données personnelles sans protection | Traçabilité complète + registre CNIL |
+| Certification ISO 27001 | ❌ Absente | Pas de cadre formel | Préparation certification ISO 27001 |
+| Contrats de maintenance | ⚠️ Partiel | Maintenance ad-hoc sans SLA | SLA opérateur 4h + support technique 24/7 |
+| Droit d'accès des utilisateurs | ⚠️ Partiel | Dossiers sans gestion explicitée | AGDLP + délégation par OU |
+
+## Plan de remédiation
+
+### Priorité CRITIQUE (Implémentation immédiate)
+
+✅ **Sécurisation accès** : Authentification centralisée redondante (DC2, RODC)
+✅ **Chiffrement données** : BitLocker + SMB 3.0 + TLS 1.2
+✅ **Sauvegardes 3-2-1** : Local NAS + Cloud OVH + archives LTO-8
+✅ **Segmentation réseau** : DMZ + VLANs + pare-feu
+✅ **GPO sécurité** : Complexité mots de passe, AppLocker, audit
+
+### Priorité HAUTE (3-6 mois)
+
+✅ **Audit centralisé** : Event Forwarding + serveur Syslog
+✅ **VPN sécurisé** : RAS/VPN pour télétravail
+✅ **Antivirus managé** : Windows Defender + GPO
+✅ **Sauvegarde externalisée** : Cloud avec chiffrement end-to-end
+
+### Priorité MOYENNE (6-12 mois)
+
+✅ **Conformité RGPD** : Inventaire données + DPA
+✅ **ISO 27001** : Documentation + audit externe
+✅ **SIEM avancé** : Détection anomalies + corrélation événements
+
+---
+
+# Chapitre 1 – Cartographie du Système d'Information
 
 ## Vue d'ensemble de l'architecture
 
@@ -198,14 +300,75 @@ Les deux sites sont reliés par une liaison **VPN MPLS (10.0.0.0/30)** offrant :
 | SRVMON1 | Supervision | Zabbix, logs, métriques |
 | SRVBACK1 | Sauvegarde | Veeam, orchestration backups |
 
+## Description des serveurs et services
+
+### Serveurs principaux (Atlantis)
+
+| Serveur | Rôle | Description |
+|---------|------|-------------|
+| SRVDC1 | Contrôleur de domaine | DC principal, FSMO, DNS, DHCP |
+| SRVDC2 | Contrôleur de domaine | DC secondaire, DNS, réplication AD |
+| SRVFS1 | Serveur de fichiers | Partages services, profils utilisateurs |
+| SRVFS2 | Serveur de fichiers | Réplication DFS, sauvegardes fichiers |
+| SRVAPP1 | Serveur d'applications | Frontend ERP (Odoo), IIS |
+| SRVDB1 | Base de données | PostgreSQL backend ERP (10 Go) |
+| SRVWEB1 | Portail web | DMZ, accès externe ERP en HTTPS |
+| SRVMON1 | Supervision | Zabbix, logs centralisés, alertes |
+| SRVBACK1 | Sauvegarde | Veeam Backup, orchestration 3-2-1 |
+
 ### Serveurs site distant (Springfield)
 
 | Serveur | Rôle | Description |
 |---------|------|-------------|
-| SRVDC3 | Contrôleur de domaine | RODC, cache AD, DNS local |
-| SRVFS3 | Serveur de fichiers | Cache fichiers, partage local |
-| SRVLIN1 | Serveur Linux | Équipements laboratoire |
-| SRVLIN2 | Serveur Linux | Données laboratoire |
+| SRVDC3 | Contrôleur de domaine | RODC, cache AD, DNS local, authentification locale |
+| SRVFS3 | Serveur de fichiers | Cache fichiers, partage laboratoire local |
+| SRVLIN1 | Serveur Linux | Pilotage équipements laboratoire |
+| SRVLIN2 | Serveur Linux | Collecte données laboratoire |
+
+## Infrastructure de stockage et équipements réseau
+
+### NAS et Stockage
+
+| Équipement | Capacité | Configuration | Rôle |
+|-----------|----------|--------------|------|
+| NAS-FILES-ATL | 800 Go (actuellement) → 2 To | RAID 6, 2 x 1 Go Ethernet | Partages métier + profils |
+| NAS-BACKUP-ATL | 20 To | RAID 6, SMB3 chiffré | Sauvegardes locales Atlantis |
+| NAS-BACKUP-SPR | 5 To | RAID 6, accès local | Sauvegardes locales Springfield |
+| Stockage Cloud OVH | 50 To | Chiffrement AES-256 | Sauvegardes externalisées |
+| Archives LTO-8 | 12 To/bande | Immuable, long terme | Conformité, archivage légal |
+
+### Équipements Réseau
+
+| Équipement | Fonction | Spécifications |
+|-----------|----------|----------------|
+| FW-ATL | Pare-feu Atlantis | Filtrage avancé, IDPS, proxy UTM |
+| FW-SPR | Pare-feu Springfield | Filtrage entrant/sortant, IDPS |
+| ROUTEUR | Accès Internet + VPN MPLS | Box fibre + L3VPN opérateur SLA 99.9% |
+| COPIEUR | Impression/numérisation | Réseau Management, VLAN 40 |
+| IMPRIMANTE | Impression couleur | Réseau Management, VLAN 40 |
+
+### Infrastructure Hyperviseur
+
+| Composant | Spécifications | Usage |
+|-----------|----------------|-------|
+| HYPERVISEUR | ESXi 7.0 | Hébergement VMs ERP |
+| SRVAPP1-VM | 4 vCPU, 8 Go RAM | Odoo application (haute disponibilité) |
+| SRVDB1-VM | 8 vCPU, 16 Go RAM | PostgreSQL + SSD pour perfs |
+| SRVBACK1-VM | 2 vCPU, 8 Go RAM | Orchestration Veeam |
+| SRVMON1-VM | 2 vCPU, 4 Go RAM | Zabbix + logs centralisés |
+| Snapshots | Quotidiens | Protection contre rançongiciels |
+
+## Volumes de données
+
+### Données actuelles
+
+| Type de données | Volume | Croissance annuelle estimée |
+|-----------------|--------|---------------------------|
+| Partages métier | 800 Go | +15% (120 Go/an) |
+| Dossiers personnels (60 users × 5 Go) | 300 Go | +10% (30 Go/an) |
+| Base ERP PostgreSQL | 10 Go | +25% (2.5 Go/an) |
+| Profils utilisateurs | 50 Go | +5% |
+| **Total** | **1.16 To** | **~150 Go/an** |
 
 ---
 
@@ -601,15 +764,15 @@ Cet ordre d'application garantit que les paramètres domaine s'appliquent en pre
 
 ## Classification des données et RTO/RPO
 
-| Catégorie | Données | RTO | RPO | Fréquence |
-|-----------|---------|-----|-----|-----------|
-| Critiques | Base ERP, Données critiques | 4 heures | 1 heure | Continue |
-| Importantes | Données services, Emails | 24 heures | 4 heures | 4x/jour |
-| Moins critiques | Dossiers personnels | 24 heures | 24 heures | 1x/jour |
+| Catégorie | Données | RTO | RPO | Fréquence | Volume |
+|-----------|---------|-----|-----|-----------|--------|
+| Critiques | Base ERP, Données financières | 4 heures | 1 heure | Continue | 10 Go |
+| Importantes | Partages services, Emails | 24 heures | 4 heures | 4x/jour | 800 Go |
+| Moins critiques | Dossiers personnels | 24 heures | 24 heures | 1x/jour | 300 Go |
 
-## Architecture de sauvegarde 3-2-1
+## Architecture de sauvegarde 3-2-1 avancée
 
-L'architecture de sauvegarde repose sur une approche éprouvée :
+L'architecture de sauvegarde repose sur la règle 3-2-1 renforcée avec automatisation complète :
 
 ```mermaid
 graph LR
@@ -737,7 +900,117 @@ Pour les données moins critiques :
 
 ---
 
-# Chapitre 6 – Garantie des Piliers de Sécurité
+# Chapitre 6 – Sécurité Réseau et Politique de Filtrage
+
+## Architecture de sécurité réseau
+
+La sécurité du réseau repose sur une approche en profondeur avec segmentation des flux et filtrage avancé.
+
+### Segmentation par VLANs
+
+```mermaid
+graph TB
+    INTERNET["🌐 INTERNET"]
+    
+    INTERNET --> FW["🔥 PARE-FEU PRINCIPAL<br/>Filtrage + IDPS + Proxy UTM"]
+    
+    FW --> VLAN10["🌐 VLAN 10<br/>LAN Atlantis<br/>192.168.10.0/24"]
+    FW --> VLAN20["🔒 VLAN 20<br/>Serveurs<br/>192.168.20.0/24"]
+    FW --> VLAN30["🔐 VLAN 30<br/>DMZ Demilitarisée<br/>192.168.30.0/24"]
+    FW --> VLAN40["⚙️ VLAN 40<br/>Management<br/>192.168.40.0/24"]
+    FW --> VLAN50["🌐 VLAN 50<br/>LAN Springfield<br/>192.168.50.0/24"]
+    FW --> VLAN60["💾 VLAN 60<br/>Sauvegarde<br/>192.168.60.0/24"]
+    
+    VLAN10 --> PC["💻 Postes Travail<br/>45 équipements"]
+    VLAN20 --> DC["🔑 Contrôleurs<br/>SRVDC1, SRVDC2"]
+    VLAN20 --> FS["📁 Fichiers<br/>SRVFS1, SRVFS2"]
+    VLAN20 --> APP["🎯 ERP<br/>SRVAPP1 + SRVDB1"]
+    VLAN30 --> WEB["🌐 Portail Web<br/>SRVWEB1"]
+    VLAN40 --> MGMT["🔧 Accès Admin<br/>SSH, RDP, SNMP"]
+    VLAN60 --> NAS["💾 NAS Backup<br/>NAS-BACKUP-ATL"]
+    
+    style INTERNET fill:#ff9999
+    style FW fill:#ff6666,stroke:#cc0000
+    style VLAN10 fill:#cce5ff
+    style VLAN20 fill:#e6ccff
+    style VLAN30 fill:#ffe6e6
+    style VLAN40 fill:#ccffcc
+    style VLAN50 fill:#ffcccc
+    style VLAN60 fill:#ffffcc
+```
+
+### Politique de filtrage pare-feu
+
+#### Règles SORTANTES depuis LAN Atlantis (VLAN 10)
+
+| Source | Destination | Protocole | Port | Action | Description |
+|--------|-------------|-----------|------|--------|-------------|
+| Postes (VLAN 10) | Serveurs (VLAN 20) | TCP | 389, 636 | Autoriser | LDAP / LDAPS (authentification) |
+| Postes (VLAN 10) | Serveurs (VLAN 20) | TCP | 445 | Autoriser | SMB3 (partages fichiers chiffrés) |
+| Postes (VLAN 10) | DMZ (VLAN 30) | TCP | 443 | Autoriser | HTTPS (portail ERP) |
+| Postes (VLAN 10) | INTERNET | TCP | 443 | Autoriser | HTTPS (web externe) |
+| Postes (VLAN 10) | INTERNET | TCP | 25, 587 | Autoriser | SMTP/TLS (emails sortants) |
+| Postes (VLAN 10) | INTERNET | TCP | 53 | Autoriser | DNS interne/externe |
+| Postes (VLAN 10) | Tout | * | * | **Bloquer** | Autres flux interdits |
+
+#### Règles ENTRANTES vers DMZ (VLAN 30)
+
+| Source | Destination | Protocole | Port | Action | Description |
+|--------|-------------|-----------|------|--------|-------------|
+| INTERNET | SRVWEB1 | TCP | 443 | Autoriser | HTTPS (portail ERP) |
+| INTERNET | SRVWEB1 | TCP | 80 | Bloquer | HTTP interdit (force HTTPS) |
+| INTERNET | DMZ | * | * | **Bloquer** | Autres flux bloqués |
+
+#### Règles ENTRANTES depuis Springfield
+
+| Source | Destination | Protocole | Port | Action | Description |
+|--------|-------------|-----------|------|--------|-------------|
+| Springfield VPN MPLS | Serveurs (VLAN 20) | TCP | 389, 636 | Autoriser | LDAP DC (authentification RODC) |
+| Springfield VPN MPLS | Fichiers (VLAN 20) | TCP | 445 | Autoriser | SMB3 (cache fichiers) |
+| Springfield VPN MPLS | ERP (VLAN 20) | TCP | 5432 | Autoriser | PostgreSQL (accès data) |
+| Springfield VPN MPLS | DMZ (VLAN 30) | TCP | 443 | Autoriser | HTTPS (portail ERP) |
+
+#### Règles SORTANTES vers Cloud/Backup
+
+| Source | Destination | Protocole | Port | Action | Description |
+|--------|-------------|-----------|------|--------|-------------|
+| SRVBACK1 (VLAN 60) | Cloud OVH | TCP | 443 | Autoriser | HTTPS Veeam to Cloud (chiffré) |
+| SRVBACK1 (VLAN 60) | NAS-BACKUP-ATL | TCP | 445 | Autoriser | SMB3 (déduplication) |
+| SRVBACK1 (VLAN 60) | NAS-BACKUP-SPR | TCP | 445 | Autoriser | SMB3 via VPN MPLS |
+
+### DMZ - Zone Démilitarisée
+
+La DMZ accueille les services exposés à Internet avec isolation stricte :
+
+- **SRVWEB1** : Portail Odoo (frontal HTTP/HTTPS uniquement)
+- **Restrictions** : Aucun accès direct vers VLAN 20 (Serveurs)
+- **Accès BD** : Via tunnel chiffré avec authentification Kerberos
+- **Logs** : Tous les accès audités et centralisés
+
+### Proxy et Protection DDoS
+
+| Fonction | Détails | Implémentation |
+|----------|---------|-----------------|
+| Proxy Forward | Filtrage contenu, blocklist URLs | Authentification LDAP/Kerberos |
+| Proxy Inverse | Accélération HTTPS, SSL/TLS offloading | Certificats EV pour portail |
+| WAF (Web App Firewall) | Protection OWASP Top 10 | Règles custom pour Odoo |
+| Anti-DDoS | Limitation débit, rate limiting | Mitigation automatique 99.9% |
+| Filtrage antispam | Blague liste, DKIM/SPF/DMARC | S'applique aux emails entrants |
+
+### IDPS (Intrusion Detection/Prevention System)
+
+| Type d'attaque | Détection | Prévention | Alerte |
+|-----------------|-----------|-----------|--------|
+| Reconnaissance | Port scanning, énumération DNS | Blocage immédiat | Critique |
+| Injection SQL | Pattern matching OWASP | Blocage payload | Haute |
+| XSS/CSRF | Inspection contenu HTML | Blocage script | Haute |
+| Exploitation | Tentatives escalade privilèges | Blocage processus | Critique |
+| Malware | Signature + heuristique | Mise en quarantaine | Critique |
+| Exfiltration | Détection flux anormaux | Limitation débit | Haute |
+
+---
+
+# Chapitre 5 – Garantie des Piliers de Sécurité
 
 ## Framework CIDT (Confidentialité, Intégrité, Disponibilité, Traçabilité)
 
@@ -915,7 +1188,121 @@ La traçabilité est assurée par :
 
 ---
 
-# Chapitre 7 – Conclusion
+# Chapitre 7 – Plan de Continuité et Plan de Reprise d'Activité
+
+## Objectifs de service (SLA)
+
+```mermaid
+graph TB
+    CRITERE["📊 OBJECTIFS DE SERVICE"]
+    
+    CRITERE --> RTO["⏱️ RTO<br/>Recovery Time Objective"]
+    CRITERE --> RPO["🕐 RPO<br/>Recovery Point Objective"]
+    CRITERE --> MTTR["🔧 MTTR<br/>Mean Time To Repair"]
+    CRITERE --> DISPO["📈 Disponibilité<br/>99.9% SLA"]
+    
+    RTO --> RTO_CRIT["🔴 Critique<br/>4 heures"]
+    RTO --> RTO_STD["🟡 Standard<br/>24 heures"]
+    
+    RPO --> RPO_CRIT["🔴 Critique<br/>1 heure"]
+    RPO --> RPO_STD["🟡 Standard<br/>4 heures"]
+    
+    MTTR --> MTTR_VAL["⚙️ Maximum 4 heures<br/>SLA opérateur"]
+    
+    DISPO --> DISPO_H["📊 99.9% = 43min/mois"]
+    
+    style CRITERE fill:#ff9999
+    style RTO fill:#ffcccc
+    style RPO fill:#ffcccc
+    style MTTR fill:#ffcccc
+    style DISPO fill:#ffcccc
+    style RTO_CRIT fill:#ff9999
+    style RPO_CRIT fill:#ff9999
+```
+
+## Matrice de criticité des services
+
+| Service | Type | RTO | RPO | Redondance | Basculement |
+|---------|------|-----|-----|-----------|-----------|
+| Active Directory | Critique | 1h | Temps réel | DC1 + DC2 + RODC | Automatique |
+| Fichiers (Partages) | Important | 4h | 1h | DFS + NAS réplication | Manuel 30min |
+| ERP (Odoo) | Critique | 4h | 1h | VM snapshot + backup | Veeam 2h |
+| Emails (Office 365) | Important | 24h | 4h | Cloud Microsoft | Natif HA |
+| Postes clients | Standard | 24h | Données personnelles | Image disque | Restauration 4h |
+| DNS/DHCP | Critique | 30min | Temps réel | Redondant DC1/DC2 | Automatique |
+
+## Procédures de récupération
+
+### Scénario 1 : Défaillance d'un serveur
+
+```
+Temps T0 : Détection panne (Zabbix alertes)
+  ├─ Failover automatique vers VM secondaire (15 min)
+  └─ Basculement DNS vers IP secondaire
+  
+Temps T+15min : Service restauré
+  ├─ Vérification intégrité données
+  └─ Notification utilisateurs (RAS)
+```
+
+### Scénario 2 : Perte de connectivité inter-sites
+
+```
+Temps T0 : Perte VPN MPLS détectée
+  ├─ Activation liaison 4G de secours (10 min)
+  ├─ Springfield utilise cache local RODC (15 min)
+  └─ Sauvegardes Springfield vers NAS local
+
+Temps T+25min : Services rétablis partiellement
+  └─ Utilisateurs Springfield en semi-autonomie
+
+Temps T+4h : VPN rétabli, résync complète
+  └─ Retour à la normale
+```
+
+### Scénario 3 : Rançongiciel sur partages
+
+```
+Temps T0 : Détection volumétrique anormale (IDS/IPS)
+  ├─ Isolation des partages affectés
+  ├─ Notification équipe sécurité
+  └─ Activation plan d'incident
+
+Temps T0+15min : Analysis
+  ├─ Identification données chiffrées
+  ├─ Restauration à partir de snapshot hourly
+  └─ Vérification intégrité via hash SHA256
+
+Temps T0+2h : Restauration fichiers
+  ├─ Repopulation à partir de backup (Veeam)
+  └─ Vérification virus sur fichiers
+
+Temps T0+4h : RAS utilisateurs
+  └─ Fichiers disponibles, sécurité validée
+```
+
+## Test et validation
+
+### Calendrier de test
+
+| Récurrence | Test | Objectif | Validateur |
+|------------|------|----------|-----------|
+| Mensuel | Restauration fichiers | Validation RPO | Administrateur |
+| Trimestriel | Failover DC | Basculement automatique | DSI + CESITECH |
+| Semestriel | Restauration complète | Validation RTO global | Direction IT |
+| Annuel | Test PRA complet | Audit incident | Directeur général |
+
+### Critères de succès
+
+✅ **Restauration réussie** : Tous les fichiers présents et non corruptés
+✅ **Délai RTO** : Restauration < 4h pour données critiques
+✅ **Délai RPO** : Perte maximum 1h de données
+✅ **Intégrité** : Vérification checksum 100%
+✅ **Absence faux positifs** : Aucune alerte non fondée
+
+---
+
+# Chapitre 8 – Conclusion
 
 ## Synthèse de la solution proposée
 
