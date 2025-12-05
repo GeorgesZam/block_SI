@@ -415,19 +415,19 @@ L'infrastructure Active Directory repose sur une architecture haute disponibilit
 
 ```mermaid
 graph TB
-    ROOT["🌳 xanadu.local<br/><b>Forêt & Domaine</b><br/>Niveau 2019"]
+    ROOT["🌳 xanadu.local<br/>Forêt & Domaine<br/>Niveau 2019"]
     
-    ROOT --> DC1["🔑 SRVDC1<br/><b>DC Principal - Atlantis</b>"]
-    ROOT --> DC2["🔄 SRVDC2<br/><b>DC Secondaire - Atlantis</b>"]
-    ROOT --> DC3["📖 SRVDC3<br/><b>RODC - Springfield</b>"]
+    ROOT --> DC1["🔑 SRVDC1<br/>DC Principal - Atlantis"]
+    ROOT --> DC2["🔄 SRVDC2<br/>DC Secondaire - Atlantis"]
+    ROOT --> DC3["📖 SRVDC3<br/>RODC - Springfield"]
     
-    DC1 --> FSMO["<b>5 Rôles FSMO</b><br/>RID | PDC | Infrastructure<br/>Naming Master | Schema Master"]
-    DC1 --|<b>Réplication<br/>Bidirectionnelle</b>| DC2
-    DC2 --|<b>VPN MPLS<br/>Réplication</b>| DC3
+    DC1 --> FSMO["5 Rôles FSMO<br/>RID, PDC, Infrastructure<br/>Naming Master, Schema Master"]
+    DC1 -->|Réplication Bidirectionnelle| DC2
+    DC2 -->|VPN MPLS Réplication| DC3
     
-    DC1 --> SRV1["<b>Services DNS/DHCP</b><br/>Primary"]
-    DC2 --> SRV2["<b>Services DNS</b><br/>Secondary"]
-    DC3 --> SRV3["<b>DNS Local<br/>Cache Mots de passe</b><br/>Authentication Locale"]
+    DC1 --> SRV1["Services DNS/DHCP<br/>Primary"]
+    DC2 --> SRV2["Services DNS<br/>Secondary"]
+    DC3 --> SRV3["DNS Local & Cache<br/>Mots de passe<br/>Authentication Locale"]
     
     DC1 -.->|Temps réel| SYNC1["Modifications critiques"]
     DC2 -.->|15 minutes| SYNC2["Changements standards"]
