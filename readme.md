@@ -154,7 +154,7 @@ graph TD
     style DMZ fill:#ffe6e6
     style MGMT fill:#e6ffe6
     style BACKUP fill:#fff9e6
-
+```
 
 ### Site principal - Atlantis
 
@@ -342,7 +342,7 @@ graph TD
     style DIR fill:#cce5ff
     style BE fill:#cce5ff
     style LAB fill:#fff0cc
-
+```
 
 ## Types de comptes et rôles
 
