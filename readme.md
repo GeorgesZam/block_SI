@@ -10,7 +10,7 @@
 ## Table des matières
 
 1. [Résumé](#résumé)
-2. [Introduction et Contexte](#chapitre-0--introduction-et-contexte)
+2. [Introduction et Contexte](#chapitre-0--introduction-et-contexte) 
 3. [Cartographie du Système d'Information](#chapitre-1--cartographie-du-système-dinformation)
 4. [Architecture Active Directory](#chapitre-2--architecture-active-directory)
 5. [Stratégies de Groupe](#chapitre-3--stratégies-de-groupe)
